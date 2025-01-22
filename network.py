@@ -61,7 +61,7 @@ class AgentNetwork(nn.Module):
         )
 
         # RNN for temporal memory
-        self.rnn = nn.GRU(input_size = 128 + 64 + 64 + 64 + 32 + 32 + 32, hidden_size=256, batch_first=True)
+        self.rnn = nn.GRU(input_size = 128 + 64 + 64 + 64 + 32 + 32, hidden_size=256, batch_first=True)
 
         # Weight policy head
         self.weight_policy_head = nn.Sequential(
@@ -87,12 +87,15 @@ class AgentNetwork(nn.Module):
         # value head for action advantage
         self.value_head = nn.Linear(256 + 64, 1)
     
-    def forward(
-            self, map_memory, enemy_memory, 
-            ally_memory, ship_state, 
-            relic_points, match_points, 
-            match_number, sap_range,
-            hidden_state=None):
+    def forward(self, shared_inputs, ship_states, hidden_state=None):
+        # unravel shared_inputs dict
+        map_memory = shared_inputs["map_memory"] 
+        enemy_memory = shared_inputs["enemy_memory"]
+        ally_memory = shared_inputs["ally_memory"]
+        relic_points = shared_inputs["relic_points"]
+        match_points = shared_inputs["match_points"]
+        sap_range = shared_inputs["sap_range"]
+
         # process map memory
         map_features = self.map_conv(map_memory)
 
@@ -102,28 +105,30 @@ class AgentNetwork(nn.Module):
         # process allied states
         ally_features = self.ally_fc(ally_memory.view(ally_memory.size(0), -1))
 
-        # process indiviudal ship state
-        ship_features = self.ship_fc(ship_state)
-
         # process relic points
         relic_features = self.relic_fc(relic_points)
 
         # process match points
         match_features = self.match_fc(match_points)
 
-        # process match number
-        match_num_features = self.match_num_fc(match_number.unsqueeze(-1))
+        # process individual ship state
+        ship_features = self.ship_fc(ship_states)
 
-        # combine feture
-        combined_features = torch.cat([
-            map_features, enemy_features, ally_features, 
-            ship_features, relic_features, match_features, 
-            match_num_features
+        # shared embedding
+        shared_embedding = torch.cat([
+            map_features, enemy_features, ally_features,
+            relic_features, match_features
         ], dim=-1)
 
+        # expand shared embedding to match number of ships
+        shared_embedding = shared_embedding.unsqueeze(1).repeat(1, ship_states.size(0), 1) # (batch_size, num_ships, embedding_dim)
+
+
+        # combine feture
+        combined_features = torch.cat([shared_embedding, ship_features], dim=-1) # (batch_size, embedding_dim + ship_embedding_dim)
+
         # pass through RNN for temporal memory
-        rnn_out, hidden_state = self.rnn(combined_features.unsqueeze(1), hidden_state)
-        rnn_out = rnn_out.squeeze(1)
+        rnn_out, hidden_state = self.rnn(combined_features, hidden_state)
 
         # combpute weight policy
         weights_out = self.weight_policy_head(rnn_out)
@@ -132,7 +137,7 @@ class AgentNetwork(nn.Module):
         weights_features = self.weights_fc(weights_out)
 
         # process sap range
-        sap_range_features = self.sap_range_fc(sap_range)
+        sap_range_features = self.sap_range_fc(sap_range).unsqueeze(1).repeat(1, ship_states.size(0), 1)
 
         # compute action policy
         combined_action_input = torch.cat([rnn_out, weights_features, sap_range_features], dim=-1)
@@ -140,3 +145,52 @@ class AgentNetwork(nn.Module):
         value = self.value_head(combined_action_input)
 
         return weights_out, action_probs, value, hidden_state
+
+def compute_network_difference(agent1, agent2):
+    """
+    Compute the L2 norm of the difference between two networks.
+
+    Args:
+        agent1: The current network (Player 1).
+        agent2: The lagging network (Player 2).
+
+    Returns:
+        float: L2 norm of the parameter differences.
+    """
+    difference = 0.0
+    for p1, p2 in zip(agent1.parameters(), agent2.parameters()):
+        difference += torch.norm(p1 - p2).item() ** 2
+    return difference ** 0.5
+
+def has_converged(win_rates, network_differences, win_rate_threshold=0.7, win_rate_range=0.05, diff_threshold=0.01, k=10):
+    """
+    Check if training has converged based on win rates and network differences.
+
+    Args:
+        win_rates (list): Rolling win rates for Player 1.
+        network_differences (list): Rolling network differences.
+        win_rate_threshold (float): Minimum average win rate for Player 1.
+        win_rate_range (float): Allowed oscillation range for win rates.
+        diff_threshold (float): Threshold for network difference stabilization.
+        k (int): Number of recent episodes to check for stabilization.
+
+    Returns:
+        bool: True if convergence criteria are met.
+    """
+    # Check win rate stability
+    recent_win_rates = win_rates[-k:]
+    if len(recent_win_rates) < k:
+        return False
+    if max(recent_win_rates) - min(recent_win_rates) > win_rate_range:
+        return False
+    if sum(recent_win_rates) / len(recent_win_rates) < win_rate_threshold:
+        return False
+
+    # Check network difference stabilization
+    recent_differences = network_differences[-k:]
+    if len(recent_differences) < k:
+        return False
+    if max(recent_differences) > diff_threshold:
+        return False
+
+    return True

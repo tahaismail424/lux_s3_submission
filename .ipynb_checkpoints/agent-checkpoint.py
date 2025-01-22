@@ -1,6 +1,5 @@
 import numpy as np
 from network import AgentNetwork
-import torch
 
 class Agent():
     def __init__(self, player: str, env_cfg, net: AgentNetwork) -> None:
@@ -34,50 +33,23 @@ class Agent():
         # save knowledge of relic location
         self.relic_memory = None
 
-    def act_train(self, step: int, obs, remainingOverageTime: int = 60):
-        """implement this function to calculate network outputs for agent training.
-        """
-        (map_memory, enemy_memory, ally_memory, 
-         relic_points, match_points, 
-         sap_range) = self.process_obs(obs)
-        
-        shared_features = {
-            "map_memory": torch.tensor(map_memory, dtype=torch.float32),
-            "enemy_memory": torch.tensor(enemy_memory, dtype=torch.float32),
-            "ally_memory": torch.tensor(ally_memory, dtype=torch.float32),
-            "relic_points": torch.tensor(relic_points, dtype=torch.long),
-            "match_points": torch.tensor(match_points, dtype=torch.long),
-            "sap_range": torch.tensor(sap_range, dtype=torch.float32)
-        }
-
-        ship_states = torch.tensor(self.allied_memory, dtype=torch.float32)
-        return self.net(shared_features, ship_states)
-
 
     def act(self, step: int, obs, remainingOverageTime: int = 60):
         """implement this function to decide what actions to send to each available unit. 
         
         step is the current timestep number of the game starting from 0 going up to max_steps_in_match * match_count_per_episode - 1.
         """
-        (map_memory, enemy_memory, ally_memory, 
-         relic_points, match_points,
-         sap_range) = self.process_obs(obs)
-        
-        shared_features = {
-            "map_memory": torch.tensor(map_memory, dtype=torch.float32),
-            "enemy_memory": torch.tensor(enemy_memory, dtype=torch.float32),
-            "ally_memory": torch.tensor(ally_memory, dtype=torch.float32),
-            "relic_points": torch.tensor(relic_points, dtype=torch.long),
-            "match_points": torch.tensor(match_points, dtype=torch.long),
-            "sap_range": torch.tensor(sap_range, dtype=torch.float32)
-        }
+        features = self.process_obs(obs)
+        unit_mask = np.array(obs["units_mask"][self.team_id]) # shape (max_units, )
+        unit_positions = np.array(obs["units"]["position"][self.team_id]) # shape (max_units, 2)
+        unit_energys = np.array(obs["units"]["energy"][self.team_id]) # shape (max_units, 1)
+        observed_relic_node_positions = np.array(obs["relic_nodes"]) # shape (max_relic_nodes, 2)
+        observed_relic_nodes_mask = np.array(obs["relic_nodes_mask"]) # shape (max_relic_nodes, )
+        team_points = np.array(obs["team_points"]) # points of each team, team_points[self.team_id] is the points of the your team
 
-        ship_states = torch.tensor(self.allied_memory, dtype=torch.float32)
-        _, action_probs, _, _ = self.net(shared_features, ship_states)
-        actions = self.sample_actions(action_probs)
         return actions
     
-    def process_obs(self, obs):
+    def process_obs(self, obs, match_number):
         """
         This functions processes observation space 
         into feature vectors to input into the agent learning network
@@ -140,11 +112,9 @@ class Agent():
             ally_memory,
             relic_points,
             match_points, 
+            match_number,
             sap_range
         )
         self.obs_history.append(obs_processed)
         return obs_processed
-    
-    def sample_actions(self, action_probs):
-        pass
 
