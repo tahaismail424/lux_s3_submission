@@ -18,7 +18,7 @@ def calculate_rewards(weights_matrix, map_memory, enemy_memory, ally_memory, rel
     exploration_reward = calculate_exploration_reward(map_memory, enemy_memory, ally_memory)
     attack_reward = calculate_attack_reward(enemy_memory)
     defense_reward = calculate_defense_reward(ally_memory)
-    relic_reward = relic_points[0] - relic_points [1] # Difference in relic scores
+    relic_reward = relic_points[0] - relic_points[1] # Difference in relic scores
 
     # match reward
     match_reward = 0
@@ -29,7 +29,7 @@ def calculate_rewards(weights_matrix, map_memory, enemy_memory, ally_memory, rel
 
     rewards = []
     n_ships = weights_matrix.shape[0]
-    for i in range (n_ships):
+    for i in range(n_ships):
         # calculate reward for each ship
         weights = weights_matrix[i]
         total_reward = (
@@ -41,7 +41,7 @@ def calculate_rewards(weights_matrix, map_memory, enemy_memory, ally_memory, rel
         )
 
         rewards.append(total_reward)
-    return rewards
+    return np.array(rewards)
 
 def calculate_exploration_reward(map_memory, enemy_memory, ally_memory):
     """

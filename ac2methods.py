@@ -19,8 +19,8 @@ def compute_advantages(rewards, values, gamma=0.99, lambda_=0.95):
     advantages = np.zeros_like(rewards, dtype=np.float32)
 
     # Compute returns and advantages
-    next_return = 0
-    next_value = 0
+    next_return = np.zeros_like(rewards[0], dtype=np.float32)
+    next_value = np.zeros_like(rewards[0], dtype=np.float32)
     for t in reversed(range(len(rewards))):
         # Discounted return
         returns[t] = rewards[t] + gamma * next_return
@@ -50,7 +50,7 @@ def compute_weight_loss(log_probs, advantages, values, returns, entropy_coeff=0.
         torch.Tensor: Total loss for the weight policy head.
     """
     # Policy loss
-    policy_loss = -(log_probs * advantages.detach()).mean()
+    policy_loss = -(log_probs * advantages.detach().unsqueeze(-1)).sum(dim=-1).mean()
 
     # Value loss
     value_loss = value_coeff * (returns - values).pow(2).mean()
@@ -76,7 +76,7 @@ def compute_action_loss(log_probs, advantages, values, returns, entropy_coeff=0.
         torch.Tensor: Total loss for the weight policy head.
     """
     # Policy loss
-    policy_loss = -(log_probs * advantages.detach()).mean()
+    policy_loss = -(log_probs * advantages.detach().unsqueeze(-1)).sum(dim=-1).mean()
 
     # Value loss
     value_loss = value_coeff * (returns - values).pow(2).mean()

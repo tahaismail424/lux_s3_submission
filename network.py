@@ -47,13 +47,6 @@ class AgentNetwork(nn.Module):
             nn.ReLU()
         )
 
-        # Match number encoding (FCN with temporal encoding)
-        self.match_num_fc = nn.Sequential(
-            nn.Linear(1, 32),
-            nn.ReLU(),
-            nn.Linear(32, 32)
-        )
-
         # weights vector feature extractor (FCN)
         self.weights_fc = nn.Sequential(
             nn.Linear(4, 64),
@@ -81,11 +74,20 @@ class AgentNetwork(nn.Module):
         self.action_policy_head = nn.Sequential(
             nn.Linear(256 + 64 + 32, 128), # hidden state + weights
             nn.ReLU(),
-            nn.Linear(128, action_space)
+            nn.Linear(128, action_space),
+            nn.Softmax(dim=-1)  # Normalize to probabilities
         )
 
+        # sap offset
+        self.offset_head = nn.Sequential(
+            nn.Linear(256 + 64 + 32, 128),
+            nn.ReLU(),
+            nn.Linear(128, 2),
+            nn.Sigmoid()  # Output in [0, 1] 
+        ) # output: dx and dy
+
         # value head for action advantage
-        self.value_head = nn.Linear(256 + 64, 1)
+        self.value_head = nn.Linear(256 + 64 + 32, 1)
     
     def forward(self, shared_inputs, ship_states, hidden_state=None):
         # unravel shared_inputs dict
@@ -97,19 +99,20 @@ class AgentNetwork(nn.Module):
         sap_range = shared_inputs["sap_range"]
 
         # process map memory
+        map_memory = map_memory.permute(2, 0, 1).unsqueeze(0)
         map_features = self.map_conv(map_memory)
 
         # process enemy states
-        enemy_features = self.enemy_fc(enemy_memory.view(enemy_memory.size(0), -1))
+        enemy_features = self.enemy_fc(enemy_memory.view(-1).unsqueeze(0))
 
         # process allied states
-        ally_features = self.ally_fc(ally_memory.view(ally_memory.size(0), -1))
+        ally_features = self.ally_fc(ally_memory.view(-1).unsqueeze(0))
 
         # process relic points
-        relic_features = self.relic_fc(relic_points)
+        relic_features = self.relic_fc(relic_points.unsqueeze(0))
 
         # process match points
-        match_features = self.match_fc(match_points)
+        match_features = self.match_fc(match_points.unsqueeze(0))
 
         # process individual ship state
         ship_features = self.ship_fc(ship_states)
@@ -123,10 +126,9 @@ class AgentNetwork(nn.Module):
         # expand shared embedding to match number of ships
         shared_embedding = shared_embedding.unsqueeze(1).repeat(1, ship_states.size(0), 1) # (batch_size, num_ships, embedding_dim)
 
-
         # combine feture
-        combined_features = torch.cat([shared_embedding, ship_features], dim=-1) # (batch_size, embedding_dim + ship_embedding_dim)
-
+        combined_features = torch.cat([shared_embedding, ship_features.unsqueeze(0)], dim=-1) # (batch_size, embedding_dim + ship_embedding_dim)
+       
         # pass through RNN for temporal memory
         rnn_out, hidden_state = self.rnn(combined_features, hidden_state)
 
@@ -137,14 +139,15 @@ class AgentNetwork(nn.Module):
         weights_features = self.weights_fc(weights_out)
 
         # process sap range
-        sap_range_features = self.sap_range_fc(sap_range).unsqueeze(1).repeat(1, ship_states.size(0), 1)
+        sap_range_features = self.sap_range_fc(sap_range.unsqueeze(0)).repeat(1, ship_states.size(0), 1)
 
         # compute action policy
         combined_action_input = torch.cat([rnn_out, weights_features, sap_range_features], dim=-1)
         action_probs = self.action_policy_head(combined_action_input)
+        sap_offset = self.offset_head(combined_action_input)
         value = self.value_head(combined_action_input)
 
-        return weights_out, action_probs, value, hidden_state
+        return weights_out, action_probs, sap_offset, value, hidden_state
 
 def compute_network_difference(agent1, agent2):
     """
