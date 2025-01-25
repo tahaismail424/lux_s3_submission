@@ -1,6 +1,8 @@
 import numpy as np
 from network import AgentNetwork
 import torch
+from sklearn.preprocessing import StandardScaler
+
 
 class Agent():
     def __init__(self, player: str, env_cfg, net: AgentNetwork, device: torch.device) -> None:
@@ -104,6 +106,10 @@ class Agent():
         map_memory[map_memory[:, :, 2] != -1, 2] += 1
         self.map_memory = map_memory
 
+        # standard scaler for energy and recency values
+        map_memory[:, :, 1] = StandardScaler().fit_transform(map_memory[:, :, 1])
+        map_memory[:, :, 2] = StandardScaler().fit_transform(map_memory[:, :, 2])
+
         # update enemy memory
         enemy_memory = self.enemy_memory
         vis = obs["units_mask"][self.opp_team_id]
@@ -116,6 +122,10 @@ class Agent():
         # increment recency score for all discovered units
         enemy_memory[enemy_memory[:, 3] != -1, 3] += 1
         self.enemy_memory = enemy_memory
+
+        # standard scaler for energy and recency values
+        enemy_memory[:, 2] = StandardScaler().fit_transform(enemy_memory[:, 2])
+        enemy_memory[:, 3] = StandardScaler().fit_transform(enemy_memory[:, 3])
 
         # update ally memory
         ally_memory = self.allied_memory
@@ -130,11 +140,21 @@ class Agent():
         ally_memory[ally_memory[:, 3] != -1, 3] += 1
         self.allied_memory = ally_memory
 
+        # standard scaler for energy and recency values
+        ally_memory[:, 2] = StandardScaler().fit_transform(ally_memory[:, 2])
+        ally_memory[:, 3] = StandardScaler().fit_transform(ally_memory[:, 3])
+
         # get relic points for both teams
         relic_points = obs["team_points"]
 
+        # standard scale relic points
+        relic_points = StandardScaler.fit_transform(relic_points)
+
         # get match points for both teams
         match_points = obs["team_wins"]
+
+        # standard scale team points
+        match_points = StandardScaler.fit_transform(match_points)
 
        # get sap range
         sap_range = self.env_cfg["unit_sap_range"]
