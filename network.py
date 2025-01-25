@@ -132,7 +132,7 @@ class AgentNetwork(nn.Module):
         # pass through RNN for temporal memory
         rnn_out, hidden_state = self.rnn(combined_features, hidden_state)
 
-        # combpute weight policy
+        # compute weight policy
         weights_out = self.weight_policy_head(rnn_out)
 
         # process weights vector
