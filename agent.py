@@ -1,8 +1,6 @@
 import numpy as np
 from network import AgentNetwork
 import torch
-from sklearn.preprocessing import StandardScaler
-
 
 class Agent():
     def __init__(self, player: str, env_cfg, net: AgentNetwork, device: torch.device) -> None:
@@ -45,22 +43,22 @@ class Agent():
          sap_range) = self.process_obs(obs)
         
         # standard scaler for energy and recency values
-        map_memory[:, :, 1] = StandardScaler().fit_transform(map_memory[:, :, 1])
-        map_memory[:, :, 2] = StandardScaler().fit_transform(map_memory[:, :, 2])
+        map_memory[:, :, 1] = (map_memory[:, :, 1] - map_memory[:, :, 1].mean()) / (map_memory[:, :, 1].std() + 1e-8)
+        map_memory[:, :, 2] = (map_memory[:, :, 2] - map_memory[:, :, 2].mean()) / (map_memory[:, :, 2].std() + 1e-8)
 
         # standard scaler for energy and recency values
-        enemy_memory[:, 2] = StandardScaler().fit_transform(enemy_memory[:, 2])
-        enemy_memory[:, 3] = StandardScaler().fit_transform(enemy_memory[:, 3])
+        enemy_memory[:, 2] = (enemy_memory[:, 2] - enemy_memory[:, 2].mean()) / (enemy_memory[:, 2].std() + 1e-8)
+        enemy_memory[:, 3] = (enemy_memory[:, 3] - enemy_memory[:, 3].mean()) / (enemy_memory[:, 3].std() + 1e-8)
 
         # standard scaler for energy and recency values
-        ally_memory[:, 2] = StandardScaler().fit_transform(ally_memory[:, 2])
-        ally_memory[:, 3] = StandardScaler().fit_transform(ally_memory[:, 3])
+        ally_memory[:, 2] = (ally_memory[:, 2] - ally_memory[:, 2].mean()) / (ally_memory[:, 2].std() + 1e-8)
+        ally_memory[:, 3] = (ally_memory[:, 3] - ally_memory[:, 3].mean()) / (ally_memory[:, 3].std() + 1e-8)
 
         # standard scale relic points
-        relic_points = StandardScaler.fit_transform(relic_points)
+        relic_points = (relic_points - relic_points.mean()) / (relic_points.std() + 1e-8)
 
         # standard scale team points
-        match_points = StandardScaler.fit_transform(match_points)
+        match_points = (match_points - match_points.mean()) / (match_points.std() + 1e-8)
         
         shared_features = {
             "map_memory": torch.tensor(map_memory, dtype=torch.float32).to(self.device),
@@ -85,22 +83,22 @@ class Agent():
          sap_range) = self.process_obs(obs)
         
         # standard scaler for energy and recency values
-        map_memory[:, :, 1] = StandardScaler().fit_transform(map_memory[:, :, 1])
-        map_memory[:, :, 2] = StandardScaler().fit_transform(map_memory[:, :, 2])
+        map_memory[:, :, 1] = (map_memory[:, :, 1] - map_memory[:, :, 1].mean()) / (map_memory[:, :, 1].std() + 1e-8)
+        map_memory[:, :, 2] = (map_memory[:, :, 2] - map_memory[:, :, 2].mean()) / (map_memory[:, :, 2].std() + 1e-8)
 
         # standard scaler for energy and recency values
-        enemy_memory[:, 2] = StandardScaler().fit_transform(enemy_memory[:, 2])
-        enemy_memory[:, 3] = StandardScaler().fit_transform(enemy_memory[:, 3])
+        enemy_memory[:, 2] = (enemy_memory[:, 2] - enemy_memory[:, 2].mean()) / (enemy_memory[:, 2].std() + 1e-8)
+        enemy_memory[:, 3] = (enemy_memory[:, 3] - enemy_memory[:, 3].mean()) / (enemy_memory[:, 3].std() + 1e-8)
 
         # standard scaler for energy and recency values
-        ally_memory[:, 2] = StandardScaler().fit_transform(ally_memory[:, 2])
-        ally_memory[:, 3] = StandardScaler().fit_transform(ally_memory[:, 3])
+        ally_memory[:, 2] = (ally_memory[:, 2] - ally_memory[:, 2].mean()) / (ally_memory[:, 2].std() + 1e-8)
+        ally_memory[:, 3] = (ally_memory[:, 3] - ally_memory[:, 3].mean()) / (ally_memory[:, 3].std() + 1e-8)
 
         # standard scale relic points
-        relic_points = StandardScaler.fit_transform(relic_points)
+        relic_points = (relic_points - relic_points.mean()) / (relic_points.std() + 1e-8)
 
         # standard scale team points
-        match_points = StandardScaler.fit_transform(match_points)
+        match_points = (match_points - match_points.mean()) / (match_points.std() + 1e-8)
         
         shared_features = {
             "map_memory": torch.tensor(map_memory, dtype=torch.float32).to(self.device),
