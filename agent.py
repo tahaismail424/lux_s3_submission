@@ -176,8 +176,8 @@ class Agent():
 
     
         # Initialize output dx and dy
-        sampled_dx = torch.zeros(batch_size)
-        sampled_dy = torch.zeros(batch_size)
+        sampled_dx = torch.zeros(batch_size).to(self.device)
+        sampled_dy = torch.zeros(batch_size).to(self.device)
         
         # Apply dx, dy only for sap actions
         sap_action_indices = (action_indices == action_space - 1)  # Assuming sap is the last action
