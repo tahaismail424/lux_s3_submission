@@ -167,24 +167,24 @@ class Agent():
         """
         
         sap_range = self.env_cfg["unit_sap_range"] 
-        dx = (torch.round(sap_offset.squeeze(0)[:, 0]) * (sap_range * 2) - sap_range).to(self.device)               # (batch_size, 1) - scaled
-        dy = (torch.round(sap_offset.squeeze(0)[:, 1]) * (sap_range * 2) - sap_range).to(self.device)             # (batch_size, 1) - scalled
+        dx = (torch.round(sap_offset.squeeze(0)[:, 0]) * (sap_range * 2) - sap_range)               # (batch_size, 1) - scaled
+        dy = (torch.round(sap_offset.squeeze(0)[:, 1]) * (sap_range * 2) - sap_range)             # (batch_size, 1) - scalled
         
         # Sample the discrete action
         _, batch_size, action_space = action_probs.shape
-        action_indices = torch.multinomial(action_probs.squeeze(0), 1).to(self.device).squeeze(-1)  # (batch_size,)
+        action_indices = torch.multinomial(action_probs.squeeze(0), 1).squeeze(-1)  # (batch_size,)
 
     
         # Initialize output dx and dy
-        sampled_dx = torch.zeros(batch_size, device=self.device)
-        sampled_dy = torch.zeros(batch_size, device=self.device)
+        sampled_dx = torch.zeros(batch_size)
+        sampled_dy = torch.zeros(batch_size)
         
         # Apply dx, dy only for sap actions
-        sap_action_indices = (action_indices == action_space - 1).to(self.device)  # Assuming sap is the last action
+        sap_action_indices = (action_indices == action_space - 1) # Assuming sap is the last action
         sampled_dx[sap_action_indices] = dx[sap_action_indices].squeeze(-1)
         sampled_dy[sap_action_indices] = dy[sap_action_indices].squeeze(-1)
         
         # Combine into final output (batch_size, 3)
         actions = torch.stack([action_indices.float(), sampled_dx, sampled_dy], dim=-1)
-        return actions.detach().cpu().numpy().astype(int)
+        return actions.numpy().astype(int)
 
