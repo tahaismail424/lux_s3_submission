@@ -48,7 +48,7 @@ class Agent():
             "ally_memory": torch.tensor(ally_memory, dtype=torch.float32).to(self.device),
             "relic_points": torch.tensor(relic_points, dtype=torch.float32).to(self.device),
             "match_points": torch.tensor(match_points, dtype=torch.float32).to(self.device),
-            "sap_range": torch.tensor(sap_range, dtype=torch.float32)
+            "sap_range": torch.tensor(sap_range, dtype=torch.float32).to(self.device)
         }
 
         ship_states = torch.tensor(self.allied_memory, dtype=torch.float32).to(self.device)
