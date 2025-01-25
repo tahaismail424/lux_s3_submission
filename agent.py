@@ -75,7 +75,7 @@ class Agent():
 
         ship_states = torch.tensor(self.allied_memory, dtype=torch.float32).to(self.device)
         _, action_probs, sap_offset, _, _ = self.net(shared_features, ship_states)
-        actions = self.sample_actions(action_probs, sap_offset)
+        actions = self.sample_actions(action_probs.detach().cpu(), sap_offset.detach().cpu())
         return actions
     
     def process_obs(self, obs):
